@@ -17,6 +17,10 @@ app.get('/hola', (req, res) => {
   res.send('Hola!!'); 
 });
 
+app.get('/hello', (req, res) => {
+  res.send("<html><body>Hello <b>World!.!</b></body></html>\n")
+});
+
 app.get("/urls.json", (req, res) => {
   log('json is here')
   res.json(urlDatabase);
