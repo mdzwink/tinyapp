@@ -1,6 +1,7 @@
 const express = require('express');
 const app = express();
 const PORT = 8080;
+app.set('viewengin', 'ejs');
 const log = console.log;
 
 const urlDatabase = {
