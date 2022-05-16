@@ -1,7 +1,7 @@
 const express = require('express');
 const app = express();
 const PORT = 8080;
-app.set('viewengin', 'ejs');
+app.set('view engine', 'ejs');
 const log = console.log;
 
 const urlDatabase = {
@@ -26,6 +26,10 @@ app.get("/urls.json", (req, res) => {
   log('json is here')
   res.json(urlDatabase);
 });
+app.get('/urls', (req, res) => {
+  const templateVars = { urls: urlDatabase };
+  res.render('urls_index', templateVars);
+})
 
 app.listen(PORT, () => {
   log(`Example app listening on port ${PORT}!`);
