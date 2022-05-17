@@ -14,9 +14,10 @@ const urlDatabase = {
 
 function generateRandomString() {
   let randomString = '';
-  for (let i = 0; i <= 6; i++) {
+  for (let i = 0; i < 6; i++) {
     randomString += Math.floor(Math.random() * 10)
   }
+  return randomString;
 }
 
 
@@ -53,8 +54,8 @@ app.get('/urls/:shortURL', (req, res) => {
 
 
 app.post('/urls', (req, res) => {
-  log(req.body);
-  res.send('Ok');
+  log('body from post>>>>>>>>>>', req.body)
+  res.send(`Here is your random string: ${generateRandomString()}\n...use it wisely 0.0`);
 })
 
 app.listen(PORT, () => {
