@@ -33,6 +33,17 @@ app.get('/hello', (req, res) => {
   res.send("<html><body>Hello <b>World!.!</b></body></html>\n")
 });
 
+app.post('/urls', (req, res) => {
+  const reqRes = req.body.longURL
+  const ranstr = generateRandomString();
+  urlDatabase[ranstr] = reqRes;
+
+  res.redirect(`/urls/${ranstr}`)
+  log('body from post>>>>>>>>>>', req.body.longURL)
+  log(urlDatabase)
+  // res.redirect(`/urls/${shortURL}`);
+})
+
 app.get('/urls/new', (req, res) => {
   res.render('urls_new');
 })
@@ -42,21 +53,21 @@ app.get("/urls.json", (req, res) => {
 });
 
 
-app.get('/urls', (req, res) => {
+app.get('/urls/i', (req, res) => {
   const templateVars = { urls: urlDatabase  };
   res.render('urls_index', templateVars);
 })
 
 app.get('/urls/:shortURL', (req, res) => {
-  const templateVars = { shortURL: req.params.shortURL, longURL: urlDatabase[req.params.shortURL] };
-  res.render('urls_show', templateVars);
+  const shortURL = req.params.shortURL;
+  const longURL = urlDatabase[req.params.shortURL];
+  // const templateVars = { shortURL, longURL };
+  //when /urls/:shortURL is directly accessd from the browser, should the client be redirected to the long url they provide only OR should a new short url be created and...
+  res.redirect(longURL);
+  // res.render('urls_show', templateVars);
 })
 
 
-app.post('/urls', (req, res) => {
-  log('body from post>>>>>>>>>>', req.body)
-  res.send(`Here is your random string: ${generateRandomString()}\n...use it wisely 0.0`);
-})
 
 app.listen(PORT, () => {
   log(`Example app listening on port ${PORT}!`);
