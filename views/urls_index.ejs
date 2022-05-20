@@ -16,19 +16,24 @@
   <%- include('partials/_header') %>
 
     <main style="margin: 1em;">
+  <% if (!loggedin.varified) {%>
+    <h3>You are not logged in!</h3>
+    <h4>Please <a href="/login">login</a> or <a href="/register">register :)</a> </h4>
+  <%}%>
+  <% if (loggedin.varified) {%>
     <h3>My URLs</h3>
-    <table>
+    <table style="margin: 4em;">
       <thead>
         <tr>
-          <th scope="col">Short URL</th>
+          <th scope="col">Short URL &nbsp&nbsp&nbsp</th>
           <th scope="col">Long URL</th>
         </tr>
       </thead>
       <tbody>
-        <% for(let url in urls) { %>
+        <% for(let url in userURLs) { %>
           <tr>
             <td><%= url %></td>
-            <td><%= urls[url] %></td>
+            <td><%= userURLs[url].longURL %></td>
             <td>
               <form method="POST" action="/urls/<%= url %>/delete">
                   <button type="submit" class="btn btn-primary">Delete</button>
@@ -40,8 +45,9 @@
               </form>
             </td>
           </tr>
-        <% } %>
+        <%}%>
       </tbody>
+      <%}%>
     </table>
     </main>
     <!-- Bootstrap JS-->
