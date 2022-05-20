@@ -10,13 +10,22 @@ app.set('view engine', 'ejs');
 const PORT = 8080;
 const log = console.log;
 
-const urlDatabase = {
+const urlDatabase1 = {
   'b2xVn2': 'http://www.lighthouselabs.ca',
   "9sm5xK": "http://www.google.com"
   
 };
 
-
+const urlDatabase = {//where it was urlDatabase[shortURL], //it is now urlDatabase[shortURL].(longURL OR userID)
+  b6UTxQ: {
+        longURL: "https://www.tsn.ca",
+        userID: "aJ48lW"
+    },
+    i3BoGr: {
+        longURL: "https://www.google.ca",
+        userID: "aJ48lW"
+    }
+};
 
 
 const userList = { //<<<change name back to users??
@@ -26,7 +35,6 @@ const userList = { //<<<change name back to users??
                           password: 'purple-lotus-stretch'
                         },
 }
-
 
 
 const randomStr = function() {
@@ -63,11 +71,6 @@ const authenticateUser = function (uID){
 }
 
 
-const cookieID = function(req) {
-  return req.cookies['user_id'];
-}
-
-
 app.get('/register', (req, res) => {
   const templateVars = { loggedin: false };
   res.render('urls_register', templateVars);
@@ -84,7 +87,6 @@ app.post('/register', (req, res) => {//<<< refacter
   const id = randomStr();
   userList[email] = { id, email, password }
   res.cookie('user_id', userList[email].id);
-  log('post/register: userList after registration>>>>>>>>>>>', userList);
   res.redirect('/urls');
 })
 
@@ -118,27 +120,31 @@ app.post('/logout', (req, res) => {
 
 
 app.get('/urls/:shortURL/edit', (req, res) => {
-  const templateVars = { loggedin: authenticateUser(req.cookies.user_id), email: 'bo', shortURL: req.params.shortURL, longURL: urlDatabase[req.params.shortURL] };
+  const templateVars = { loggedin: authenticateUser(req.cookies.user_id), shortURL: req.params.shortURL, longURL: urlDatabase[req.params.shortURL].longURL };
   res.render('urls_show', templateVars);
 })
 app.post('/urls/:shortURL/update', (req, res) => {
-  const shortURL = req.params.shortURL;
-  const longURL = urlDatabase[req.params.shortURL];
-  urlDatabase[shortURL] = req.body.longURL;
+  const { shortURL, longURL } = req.body;
+  urlDatabase[shortURL]['longURL'] = longURL;
   res.redirect('/urls');
 })
 app.post('/urls/:shortURL/delete', (req, res) => {
-  const shortURL = req.params.shortURL;
-  delete urlDatabase[shortURL];
-  log('item deleted');
+  if (authenticateUser(req.cookies.user_id).varified) {
+    const shortURL = req.params.shortURL;
+    delete urlDatabase[shortURL];
+    log('item deleted');
+  }
   res.redirect('/urls');
 })
 
 
 
 app.get('/urls/new', (req, res) => {
-  const templateVars = { loggedin: authenticateUser(req.cookies.user_id), email: 'bo', userList: req.cookie };
-  res.render('urls_new', templateVars);
+  const templateVars = { loggedin: authenticateUser(req.cookies.user_id), userList: req.cookie };
+  if (templateVars.loggedin.varified) {
+    res.render('urls_new', templateVars);
+  }
+  res.redirect('/login')
 })
 
 
@@ -149,15 +155,17 @@ app.get('/urls/:shortURL', (req, res) => {
   res.redirect(longURL);
 })
 app.get('/urls', (req, res) => {
-  const templateVars = { loggedin: authenticateUser(req.cookies.user_id), email: 'bo', urls: urlDatabase  };
+  const templateVars = { loggedin: authenticateUser(req.cookies.user_id), urls: urlDatabase  };
   log('>>>>> authenticator output:>>>', authenticateUser(req.cookies.user_id))
   res.render('urls_index', templateVars);
   // log('user:>>>>>>>>>>', userList)
 })
 app.post('/urls', (req, res) => {
-  const reqRes = req.body.longURL;
-  const ranstr = randomStr();
-  urlDatabase[ranstr] = reqRes;
+  if (authenticateUser(req.cookies.user_id).varified) {
+    const reqRes = req.body.longURL;
+    const ranstr = randomStr();
+    urlDatabase[ranstr] = reqRes;
+  }
   
   res.redirect('/urls');
 })
