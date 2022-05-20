@@ -7,6 +7,7 @@ app.use(cookieParser());
 app.set('view engine', 'ejs');
 // const morgan = require('morgan');// Doesn't work with nodemon??
 // app.use(morgan(dev));
+const bcrypt = require('bcryptjs');
 const PORT = 8080;
 const log = console.log;
 
@@ -78,13 +79,16 @@ app.get('/register', (req, res) => {
 })
 app.post('/register', (req, res) => {//<<< refacter
   const  { email, password } = req.body; 
+  
+  const hashedPassword = bcrypt.hashSync(password, 10);
+  log('password:', password, 'hashedPassword:', hashedPassword)
   if (!email) {
     return res.sendStatus(400)
   } else if (emailChecker(email)) {
     return res.sendStatus(400)
   } 
   const id = randomStr();
-  userList[email] = { id, email, password }
+  userList[email] = { id, email, hashedPassword }
   res.cookie('user_id', userList[email].id);
   res.redirect('/urls');
 })
@@ -94,15 +98,19 @@ app.get('/login', (req, res) => {
   res.render('urls_login', templateVars)
 })
 app.post('/login', (req, res) => {
+
   const  { email, password } = req.body; 
   log('from login.............', req.body)
+  log('is this your password>>>>',userList[email].hashedPassword)
   if (!email) {
 
     log('>>>user did not enter email<<<')
     return res.sendStatus(403)
   }
   else if (emailChecker(email)) {
-    if (userList[email].password === password) {
+    const loginpwd = password.toString()
+    const hashedPassword = userList[email].hashedPassword;
+    if (bcrypt.compareSync(loginpwd, hashedPassword)) {
       console.log('we are in the if')
       log('Cookies: ', res.cookie('user_id', userList[email].id));
       return res.redirect('/urls');
