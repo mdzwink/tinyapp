@@ -16,20 +16,17 @@ const urlDatabase = {
   
 };
 
-const users = { 
-  'firstUser': {
-    id: "rand user id",
-    email: 'user@ecample.com',
-    password: 'purple-lotus-stretch'
-  },
-  
+
+
+
+const userList = { //<<<change name back to users??
+  'user@ecample.com':  {
+                          id: "rand user id",
+                          email: 'user@ecample.com',
+                          password: 'purple-lotus-stretch'
+                        },
 }
 
-
-
-//
-let currentUser;
-//^^^^^^^ stored current user profile
 
 
 const randomStr = function() {
@@ -41,72 +38,93 @@ const randomStr = function() {
 }
 
 const emailChecker = function(email) {
-  for (let user in users) {
-    if (users[user]['email'] === email) {
-      console.log(user)
+    if (userList[email]) {
       return true;
     };
-  }
   return false;
 } 
 
+const authenticateUser1 = function (uID){
+  for (let user in userList) {
+    if (userList[user].id === uID) {
+      return true;
+    }
+  }
+  return false;
+}
+const authenticateUser = function (uID){
+  for (let user in userList) {
+    const email = userList[user].email;
+    if (userList[user].id === uID) {
+      return { varified: true, email: email };
+    }
+  }
+  return { varified: false, email: null};
+}
+
+
+const cookieID = function(req) {
+  return req.cookies['user_id'];
+}
+
 
 app.get('/register', (req, res) => {
-  templateVars = { currentUser: currentUser };
+  const templateVars = { loggedin: false };
   res.render('urls_register', templateVars);
 })
-app.post('/register', (req, res) => {
-  log('users before registration>>>>>>>>>>>', users);
-  const id = randomStr();
-  const userKey = `user${id}`
-  const newUseremail = req.body.email;
-  if (!newUseremail || emailChecker(newUseremail)) {
-    res.sendStatus(400)
-    res.send('This is an error...')
-  }
-  const newUserpassword = req.body.password;//<<<can i just add assign the body object to a variable then add the id and have my user profile?? skipping this and the next step entirely?
-  const newUser = { 'id': id, 'email': newUseremail, 'password': newUserpassword }
-  users[userKey] = newUser;
-  log('Cookies: ', res.cookie('user_id', id));
-  currentUser = users[userKey];
-  log('new user profile created, tasty cookie despensed 🍪 :P\n>>>>>', currentUser, '<<<<<');
-  log('users after registration>>>>>>>>>>>', users);
 
+
+app.post('/register', (req, res) => {//<<< refacter
+  const  { email, password } = req.body; 
+  if (!email) {
+    return res.sendStatus(400)
+  } else if (emailChecker(email)) {
+    return res.sendStatus(400)
+  } 
+  const id = randomStr();
+  userList[email] = { id, email, password }
+  res.cookie('user_id', userList[email].id);
+  log('post/register: userList after registration>>>>>>>>>>>', userList);
   res.redirect('/urls');
 })
+
+
 app.get('/login', (req, res) => {
-  templateVars = { currentUser: currentUser };
+  const templateVars = { loggedin: false };
   res.render('urls_login', templateVars)
 })
 app.post('/login', (req, res) => {//<<<<<<<<<<<<<<<<<<<<username/user(obj) update needed
-  const { email, password } = req.body;
-  
-  if (!emailChecker(email)) {
-    res.sendStatus(403)
-  }
-  log('Cookies: ', res.cookie('user_id', id));
+  const  { email, password } = req.body; 
+  log('from login.............', req.body)
+  if (!email) {
 
-  res.redirect('/login');
+    log('>>>user did not enter email<<<')
+    return res.sendStatus(403)
+  }
+  else if (emailChecker(email)) {
+    if (userList[email].password === password) {
+      console.log('we are in the if')
+      log('Cookies: ', res.cookie('user_id', userList[email].id));
+      return res.redirect('/urls');
+    }
+  }
+  return res.sendStatus(403)
 })
 app.post('/logout', (req, res) => {
-  res.clearCookie('currentUser.id');
-  currentUser = undefined;//        <<<<<<<<<<cheating, how can I relate cookie lookup directly at browser stored cookie??
-  log('logout attempt', 'logged currentUser', currentUser)//                                        ^^^^^^^^^^^^^^^^^^^
+  res.clearCookie('user_id');
   res.redirect('/urls');
 })
 
 
 
 app.get('/urls/:shortURL/edit', (req, res) => {
-  const templateVars = { currentUser: currentUser, shortURL: req.params.shortURL, longURL: urlDatabase[req.params.shortURL] };
+  const templateVars = { loggedin: authenticateUser(req.cookies.user_id), email: 'bo', shortURL: req.params.shortURL, longURL: urlDatabase[req.params.shortURL] };
   res.render('urls_show', templateVars);
 })
 app.post('/urls/:shortURL/update', (req, res) => {
   const shortURL = req.params.shortURL;
   const longURL = urlDatabase[req.params.shortURL];
   urlDatabase[shortURL] = req.body.longURL;
-  log(shortURL);
-  log('updated longURL');
   res.redirect('/urls');
 })
 app.post('/urls/:shortURL/delete', (req, res) => {
@@ -119,7 +137,7 @@ app.post('/urls/:shortURL/delete', (req, res) => {
 
 
 app.get('/urls/new', (req, res) => {
-  templateVars = { currentUser: currentUser };
+  const templateVars = { loggedin: authenticateUser(req.cookies.user_id), email: 'bo', userList: req.cookie };
   res.render('urls_new', templateVars);
 })
 
@@ -131,9 +149,10 @@ app.get('/urls/:shortURL', (req, res) => {
   res.redirect(longURL);
 })
 app.get('/urls', (req, res) => {
-  const templateVars = { currentUser: currentUser, urls: urlDatabase  };
+  const templateVars = { loggedin: authenticateUser(req.cookies.user_id), email: 'bo', urls: urlDatabase  };
+  log('>>>>> authenticator output:>>>', authenticateUser(req.cookies.user_id))
   res.render('urls_index', templateVars);
-  // log('user:>>>>>>>>>>', currentUser)
+  // log('user:>>>>>>>>>>', userList)
 })
 app.post('/urls', (req, res) => {
   const reqRes = req.body.longURL;
@@ -141,9 +160,6 @@ app.post('/urls', (req, res) => {
   urlDatabase[ranstr] = reqRes;
   
   res.redirect('/urls');
-  log('body from post>>>>>>>>>>', req.body.longURL);
-  log(urlDatabase);
-  // res.redirect(`/urls/${shortURL}`);
 })
 
 

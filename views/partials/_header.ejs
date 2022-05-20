@@ -10,7 +10,7 @@
         <a class="nav-item nav-link" href="/urls/new">Create New URL</a>
       </div>
     </div>
-    <% if (!currentUser) {%>
+    <% if (!loggedin['varified']) {%>
       <form method="GET" action="/register">
         <div class="navbar-nav">
           <button type="submit" class="btn btn-primary">Register</button>
@@ -22,9 +22,9 @@
         </div>
       </form>
     <%}%>
-    <% if (currentUser) { %>
+    <% if (loggedin['varified']) { %>
     <div class="nav-item nav-link">
-      <h6>Logged in as: <%= currentUser.email %>!</h6>
+      <h6>Logged in as: <%= loggedin['email'] %>!</h6>
     </div>
     <form method="POST" action="/logout">
       <div class="navbar-nav">
