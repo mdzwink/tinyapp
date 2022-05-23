@@ -17,17 +17,17 @@
   <div class="card text-center">
     <div class="card-header"></div>
       <div class="card-body">
-        <h5 class="card-title">TinyURL for: <a href="/u/<%= longURL %>"><%= longURL %></a></h5>
-        <p class="card-text">Short URL: <a href="/u/<%= shortURL %>"><%= shortURL %></a></p>
+        <h5 class="card-title">TinyURL for: <a href="<%= longURL %>"><%= longURL %></a></h5>
+        <p class="card-text">Short URL: <%= shortURL %></p>
       </div>
     <div class="card-footer text-muted"></div>
   </div>
   <div class="text-center">
     <h2>Edit</h2>
   </div>
-  <form class="form-inline" method="POST" action="/urls/<%= shortURL %>/update">
+  <form class="form-inline" method="POST" action="/urls/<%= shortURL %>">
     <div class="form-group mb-2">
-      <label for="longURL">Enter a URL:</label>
+      <label for="longURL">&nbsp&nbspEnter the updated long URL:</label>
       <input class="form-control" type="text" name="longURL" placeholder="http://" style="width: 300px; margin: 1em">
       <button type="submit" class="btn btn-primary">Update</button>
     </div> 

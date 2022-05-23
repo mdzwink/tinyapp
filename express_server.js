@@ -1,9 +1,14 @@
+const { randomStr, getUserByEmail, authenticateUser, authenticateOwnership, urlsForUser } = require('./helpers');
+
 const express = require('express');
 const app = express();
 const bodyParser = require('body-parser');
 app.use(bodyParser.urlencoded({extended: true}));
-const cookieParser = require('cookie-parser');
-app.use(cookieParser());
+const cookieSession = require('cookie-session');
+app.use(cookieSession({
+  name: 'user_id',
+  keys: ['simplebutpowerfull']
+}));
 app.set('view engine', 'ejs');
 // const morgan = require('morgan');// Doesn't work with nodemon??
 // app.use(morgan(dev));
@@ -12,188 +17,168 @@ const PORT = 8080;
 const log = console.log;
 
 
-const urlDatabase = {//where it was urlDatabase[shortURL], //it is now urlDatabase[shortURL].(longURL OR userID)
+const urlDatabase = {
   b6UTxQ: {
-            longURL: "https://www.tsn.ca",
-            userID: "aJ48lW"
-          },
+    longURL: "https://www.tsn.ca",
+    userID: "aJ48lW"
+  },
   i3BoGr: {
-            longURL: "https://www.google.ca",
-            userID: "aJ48lW"
-          }
+    longURL: "https://www.google.ca",
+    userID: "aJ48lW"
+  }
 };
 
 
 const userList = { //<<<change name back to users??
   'admin@tinyApp.pro':  {
-                          id: "aJ48lW",
-                          email: 'admin@tinyApp.pro',
-                          password: ''
-                        },
-}
-
-
-const randomStr = function() {
-  let randomString = '';
-  for (let i = 0; i < 6; i++) {
-    randomString += Math.floor(Math.random() * 10);
-  }
-  return randomString;
-}
-
-const emailChecker = function(email) {
-    if (userList[email]) {
-      return true;
-    };
-  return false;
-} 
-
-const authenticateUser = function(uID) {
-  for (let user in userList) {
-    const email = userList[user].email;
-    if (userList[user].id === uID) {
-      return { varified: true, email: email };
-    }
-  }
-  return { varified: false, email: null};
-}
-
-const urlsForUser = function(user_id) {
-  let userLibrary = {}
-  for (let url in urlDatabase) {
-    log('url from ursForUser fn:',url)
-    if (user_id === urlDatabase[url].userID) {
-      userLibrary[url] = urlDatabase[url];
-      log('urlsForUser:', urlDatabase[url])
-    }
-  }
-  log('from urlsForUser fn:', userLibrary)
-  return userLibrary
-}
+    id: "aJ48lW",
+    email: 'admin@tinyApp.pro',
+    password: ''
+  },
+};
 
 
 
 app.get('/register', (req, res) => {
+  if (authenticateUser(req.session.user_id, userList).varified) {
+    return res.redirect('/urls');
+  }
   const templateVars = { loggedin: false };
   res.render('urls_register', templateVars);
-})
-app.post('/register', (req, res) => {//<<< refacter
-  const  { email, password } = req.body; 
-  
-  const hashedPassword = bcrypt.hashSync(password, 10);
-  log('password:', password, 'hashedPassword:', hashedPassword)
-  if (!email) {
-    return res.sendStatus(400)
-  } else if (emailChecker(email)) {
-    return res.sendStatus(400)
-  } 
+});
+app.post('/register', (req, res) => {
   const id = randomStr();
-  userList[email] = { id, email, hashedPassword }
-  res.cookie('user_id', userList[email].id);
+  const  { email, password } = req.body;
+  const hashedPassword = bcrypt.hashSync(password, 10);
+  if (!email || !password) {
+    return res.sendStatus(400);
+  } else if (getUserByEmail(email, userList)) {
+    return res.sendStatus(400);
+  }
+  userList[email] = { id, email, hashedPassword };
+  req.session.user_id = userList[email].id;
   res.redirect('/urls');
-})
+});
 
 app.get('/login', (req, res) => {
-  const templateVars = { loggedin: false };
-  res.render('urls_login', templateVars)
-})
-app.post('/login', (req, res) => {
-
-  const  { email, password } = req.body; 
-  log('from login.............', req.body)
-  log('is this your password>>>>',userList[email].hashedPassword)
-  if (!email) {
-
-    log('>>>user did not enter email<<<')
-    return res.sendStatus(403)
+  if (authenticateUser(req.session.user_id, userList).varified) {
+    return res.redirect('/urls');
   }
-  else if (emailChecker(email)) {
-    const loginpwd = password.toString()
+  const templateVars = { loggedin: false };
+  res.render('urls_login', templateVars);
+});
+app.post('/login', (req, res) => {
+  const  { email, password } = req.body;
+  if (!email || !password) {
+    return res.sendStatus(403);
+  }
+  if (getUserByEmail(email, userList)) {
+    const loginpwd = password.toString();
     const hashedPassword = userList[email].hashedPassword;
     if (bcrypt.compareSync(loginpwd, hashedPassword)) {
-      console.log('we are in the if')
-      log('Cookies: ', res.cookie('user_id', userList[email].id));
+      req.session.user_id = userList[email].id;
       return res.redirect('/urls');
     }
   }
-  return res.sendStatus(403)
-})
+  res.sendStatus(403);
+});
 app.post('/logout', (req, res) => {
   res.clearCookie('user_id');
   res.redirect('/urls');
-})
+});
 
+app.get('/urls/new', (req, res) => {
+  const authUser = authenticateUser(req.session.user_id, userList);
+  if (authUser.varified) {
+    const templateVars = {loggedin: authUser};
+    return res.render('urls_new', templateVars);
+  }
+  res.redirect('/login');
+});
 
-
-app.get('/urls/:shortURL/edit', (req, res) => {
+app.get('/urls/:shortURL', (req, res) => {
+  const uID = req.session.user_id;
   const shortURL = req.params.shortURL;
-  const templateVars = { loggedin: authenticateUser(req.cookies.user_id), shortURL: shortURL, longURL: urlDatabase[shortURL].longURL };
+  const authUser = authenticateUser(uID, userList);
+  if (!authUser.varified) {
+    return res.sendStatus(404).send('Please log in to access your short URLs');
+  }
+  if (!authenticateOwnership(authUser.email, shortURL, userList, urlDatabase)) {
+    return res.send('Error: This short URL does not exist or is not registered under this account.');
+  }
+  const templateVars = { loggedin: authenticateUser(req.session.user_id, userList), shortURL: shortURL, longURL: urlDatabase[shortURL].longURL };
   res.render('urls_show', templateVars);
-})
-app.post('/urls/:shortURL/update', (req, res) => {
-  const shortURL = req.params.shortURL;
-  const longURL = req.body.longURL;
-  urlDatabase[shortURL].longURL = longURL;
-  res.redirect('/urls');
-})
+});
+app.post('/urls/:shortURL', (req, res) => {
+  if (authenticateUser(req.session.user_id, userList).varified) {
+    const shortURL = req.params.shortURL;
+    const longURL = req.body.longURL;
+    urlDatabase[shortURL].longURL = longURL;
+    return res.redirect('/urls');
+  }
+  res.sendStatus(403);
+});
 app.post('/urls/:shortURL/delete', (req, res) => {
-  if (authenticateUser(req.cookies.user_id).varified) {
+  if (authenticateUser(req.session.user_id, userList).varified) {
     const shortURL = req.params.shortURL;
     delete urlDatabase[shortURL];
     log('item deleted');
+    return res.redirect('/urls');
   }
-  res.redirect('/urls');
-})
+  res.sendStatus(403);
+});
 
 
 
-app.get('/urls/new', (req, res) => {
-  const templateVars = { loggedin: authenticateUser(req.cookies.user_id)};
-  if (templateVars.loggedin.varified) {
-    res.render('urls_new', templateVars);
-  }
-  res.redirect('/login')
-})
 app.post('/urls', (req, res) => {
-  const user_id = req.cookies.user_id;
-  if (authenticateUser(user_id).varified) {
+  const user_id = req.session.user_id;
+  if (authenticateUser(user_id, userList).varified) {
     const newLongURL = req.body.longURL;
-    const newShortURL = randomStr()
-    urlDatabase[newShortURL] = { longURL: newLongURL, userID: user_id}
+    const newShortURL = randomStr();
+    urlDatabase[newShortURL] = { longURL: newLongURL, userID: user_id};
+    return res.redirect(`/urls/${newShortURL}`);
   }
   res.redirect('/urls');
-})
+});
 
 
 
-
+// change to /u/.., send html instead of status code
 app.get('/urls/:shortURL', (req, res) => {
+  const userAuth = authenticateUser(req.session.userID, userList);
+  const userEmail = userAuth.email;
   const shortURL = req.params.shortURL;
-  if (urlDatabase[shortURL]) {
-    const longURL = urlDatabase[shortURL].longURL;
-    res.redirect(longURL);
+  console.log('From shortURL req', urlDatabase[shortURL]);
+  if (!authenticateUser(req.session.userID).varified) {
+    return res.status(404).send('Error: Please log in to access records.');
   }
-  res.sendStatus(400)
-})
-
-//what do i have
-  //i have a cookie with
-  //-user_id
-  //urlDatabase
-  //urlsForUser fn
-//what do i want
-  //
-  //how do i access what want
+  if (!urlDatabase[shortURL] || urlDatabase[shortURL].userID !== userList[userEmail].id) {
+    return res.send('Error: This short URL does not exist or is not registered under this account.');
+  }
+  res.redirect('user/:shortURL/edit');
+});
 
 app.get('/urls', (req, res) => {
-  const user_id = req.cookies.user_id;
-  const templateVars = { loggedin: authenticateUser(user_id), userURLs: urlsForUser(user_id) };
-  log('>>>>> authenticator output:>>>', authenticateUser(user_id))
+  const user_id = req.session.user_id;
+  const templateVars = { loggedin: authenticateUser(user_id, userList), userURLs: urlsForUser(user_id, urlDatabase) };
+  log('>>>>> authenticator output:>>>', authenticateUser(user_id, userList));
   res.render('urls_index', templateVars);
-  // log('user:>>>>>>>>>>', userList)
-})
+});
 
+app.get('/u/:id', (req, res) => {
+  const shortURL = req.params.id;
+  if (urlDatabase[shortURL]) {
+    return res.redirect(urlDatabase[shortURL]['longURL']);
+  }
+  res.send('Error: this short URL seems to be missing or non existant');
+});
 
+app.get('/', (req, res) => {
+  if (authenticateUser(req.session.user_id, userList).varified) {
+    return res.redirect('/urls');
+  }
+  res.redirect('/login');
+});
 
 app.get("/urls.json", (req, res) => {
   res.json(urlDatabase);
